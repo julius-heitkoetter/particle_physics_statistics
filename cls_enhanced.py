@@ -74,6 +74,10 @@ if __name__ == "__main__":
     print(f"  dataset: {args.dataset}")
     print(f"  plot_saving_folder: {args.plot_saving_folder}")
 
+    # Make the output folder
+    if not os.path.exists(args.plot_saving_folder):
+        os.makedirs(args.plot_saving_folder)
+
     # Get the input data
     data = np.load(args.dataset)
     m_range = (110, 150) # range of the data
