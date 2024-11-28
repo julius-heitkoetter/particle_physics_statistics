@@ -29,19 +29,24 @@ def plot_cls_profile_likelihood_distribution(m, sb_profile_likelihoods, b_profil
     plt.savefig(os.path.join(folder, f"cls_profile_liklihood_distribution_m={m}.pdf"))
     plt.close()
 
-def plot_cls_profile_likelihoods_mass_binned(sb_profile_likelihoods_mass_binned, data_type = "sb", folder = "figures/"): #TODO: bar chart is not the best way to do this
+def plot_cls_profile_likelihoods_mass_binned(profile_likelihoods_mass_binned, data_type = "sb", folder = "figures/"): #TODO: bar chart is not the best way to do this
 
     plt.figure(figsize=(10, 6))
-
-    # Plot histograms
-    for m, sb_profile_likelihoods in sb_profile_likelihoods_mass_binned.items():
-        plt.hist(sb_profile_likelihoods, bins=30, alpha=0.6, label=f'Signal + Background for m={m}', density=True)
+    
+    # Plot scatter points and lines for each mass bin
+    for m, sb_profile_likelihoods in profile_likelihoods_mass_binned.items():
+        # Calculate histogram values
+        counts, bin_edges = np.histogram(sb_profile_likelihoods, bins=20, density=True)
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2  # Compute the bin centers
+        
+        # Plot as scatter points connected by a line
+        plt.plot(bin_centers, counts, marker='o', label=f'Signal + Background for m={m}')
     
     # Add labels and title
     plt.title(f"{data_type.upper()} Profile Likelihood Distributions", fontsize=16)
     plt.xlabel("Profile Likelihood", fontsize=14)
     plt.ylabel("Density", fontsize=14)
-    plt.xlim( 0, 20 )
+    plt.xlim(0, 20)
     plt.legend(fontsize=12)
     
     # Show plot
@@ -99,7 +104,7 @@ def plot_fit(data, m_range, observed_combined_model_null, observed_combined_mode
     plt.savefig(os.path.join(folder, f'histogram_with_fits_m={m_label}_datatype_{data_type}.pdf'))
     plt.close()
 
-def plot_cls(cls_dict, folder = "figures/"):
+def plot_cls(cls_dict, folder = "figures/"): #TODO: make it log scale
 
     # Extract keys and values for plotting
     masses = list(cls_dict.keys())
