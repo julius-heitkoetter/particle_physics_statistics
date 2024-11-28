@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 from hist import Hist
 import numpy as np
+import os
 
-def plot_cls_profile_likelihood_distribution(m, sb_profile_likelihoods, b_profile_likelihoods, observed_profile_likelihood,  p5_threshold, power_at_p5):
+def plot_cls_profile_likelihood_distribution(m, sb_profile_likelihoods, b_profile_likelihoods, observed_profile_likelihood,  p5_threshold, power_at_p5, folder = "figures/"):
 
     plt.figure(figsize=(10, 6))
 
@@ -25,10 +26,10 @@ def plot_cls_profile_likelihood_distribution(m, sb_profile_likelihoods, b_profil
     # Show plot
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(f"figures/cls_profile_liklihood_distribution_m={m}.pdf")
+    plt.savefig(os.path.join(folder, f"cls_profile_liklihood_distribution_m={m}.pdf"))
     plt.close()
 
-def plot_cls_profile_likelihoods_mass_binned(sb_profile_likelihoods_mass_binned, data_type = "sb"): #TODO: bar chart is not the best way to do this
+def plot_cls_profile_likelihoods_mass_binned(sb_profile_likelihoods_mass_binned, data_type = "sb", folder = "figures/"): #TODO: bar chart is not the best way to do this
 
     plt.figure(figsize=(10, 6))
 
@@ -46,10 +47,10 @@ def plot_cls_profile_likelihoods_mass_binned(sb_profile_likelihoods_mass_binned,
     # Show plot
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(f"figures/cls_{data_type}_profile_likelihoods_mass_binned.pdf")
+    plt.savefig(os.path.join(folder, f"cls_{data_type}_profile_likelihoods_mass_binned.pdf"))
     plt.close()
 
-def plot_fit(data, m_range, observed_combined_model_null, observed_combined_model_alt, m_label, data_type):
+def plot_fit(data, m_range, observed_combined_model_null, observed_combined_model_alt, m_label, data_type, folder = "figures/"):
 
     # Define histogram
     fig = plt.figure(figsize=(7, 7))
@@ -95,10 +96,10 @@ def plot_fit(data, m_range, observed_combined_model_null, observed_combined_mode
     ax.set_ylabel('Events')
     ax.set_title(f"{data_type} Data w/ fit constrained to m={m_label}")
     ax.legend(fontsize='small')
-    plt.savefig(f'figures/histogram_with_fits_m={m_label}_datatype_{data_type}.pdf')
+    plt.savefig(os.path.join(folder, f'histogram_with_fits_m={m_label}_datatype_{data_type}.pdf'))
     plt.close()
 
-def plot_cls(cls_dict):
+def plot_cls(cls_dict, folder = "figures/"):
 
     # Extract keys and values for plotting
     masses = list(cls_dict.keys())
@@ -131,5 +132,5 @@ def plot_cls(cls_dict):
 
     # Save the plot
     plt.tight_layout()
-    plt.savefig("figures/cls_plot.pdf")
+    plt.savefig(os.path.join(folder, "cls_plot.pdf"))
     plt.close()
