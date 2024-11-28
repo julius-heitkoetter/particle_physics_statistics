@@ -1,0 +1,6 @@
+tensorflow
+tensorflow-metal # For Mac
+tqdm
+zfit
+numpy
+matplotlib
