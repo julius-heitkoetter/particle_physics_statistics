@@ -88,13 +88,6 @@ empirical_Z_fix = stats.norm.ppf(1 - p_value)
 trial_factor_from_toys = empirical_Z_toys / empirical_Z_fix
 print(f"Trial factor from toys: {trial_factor_from_toys}")
 
-# THINGS TO PLOT:
-# null_profile_likelihoods as a distribution
-# chi^2 with 2 dof to see how well it fits to null_profile_likelihoods
-# the value of profile_likelihood of the data, with a label of what it is
-# shaded the area above this profile_liklihood, labeled with both the p_value and the pseudo_experiment_p_value
-
-
 
 #####################################
 #############   PLOTS   #############
@@ -113,10 +106,7 @@ ax.set_xlabel(r"$\mathrm{m}_{\gamma\gamma}$ [GeV]")
 ax.set_ylabel('Events')
 ax.legend(fontsize='small')
 plt.savefig('figures/histogram_of_data.pdf')
-
-
-
-
+plt.close()
 
 
 # Create the Chi^2 distribution with 2 degrees of freedom
@@ -150,3 +140,4 @@ plt.grid(alpha=0.4)
 # Save and show the plot
 plt.tight_layout()
 plt.savefig("figures/profile_liklihoods.pdf")
+plt.close()
