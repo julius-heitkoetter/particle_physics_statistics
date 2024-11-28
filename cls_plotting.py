@@ -19,14 +19,16 @@ def plot_cls_profile_likelihood_distribution(m, sb_profile_likelihoods, b_profil
     plt.title(f"Profile Likelihood Distributions for Mass Bin {m} GeV", fontsize=16)
     plt.xlabel("Profile Likelihood", fontsize=14)
     plt.ylabel("Density", fontsize=14)
+    plt.xlim( 0, 20 )
     plt.legend(fontsize=12)
     
     # Show plot
     plt.grid(True)
     plt.tight_layout()
     plt.savefig(f"figures/cls_profile_liklihood_distribution_m={m}.pdf")
+    plt.close()
 
-def plot_cls_sb_profile_likelihoods_mass_binned(sb_profile_likelihoods_mass_binned):
+def plot_cls_profile_likelihoods_mass_binned(sb_profile_likelihoods_mass_binned, data_type = "sb"): #TODO: bar chart is not the best way to do this
 
     plt.figure(figsize=(10, 6))
 
@@ -35,36 +37,19 @@ def plot_cls_sb_profile_likelihoods_mass_binned(sb_profile_likelihoods_mass_binn
         plt.hist(sb_profile_likelihoods, bins=30, alpha=0.6, label=f'Signal + Background for m={m}', density=True)
     
     # Add labels and title
-    plt.title(f"S+B Profile Likelihood Distributions", fontsize=16)
+    plt.title(f"{data_type.upper()} Profile Likelihood Distributions", fontsize=16)
     plt.xlabel("Profile Likelihood", fontsize=14)
     plt.ylabel("Density", fontsize=14)
+    plt.xlim( 0, 20 )
     plt.legend(fontsize=12)
     
     # Show plot
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(f"figures/cls_sb_profile_likelihoods_mass_binned.pdf")
+    plt.savefig(f"figures/cls_{data_type}_profile_likelihoods_mass_binned.pdf")
+    plt.close()
 
-def plot_cls_b_profile_likelihoods(b_profile_likelihoods):
-
-    plt.figure(figsize=(10, 6))
-
-    # Plot histogram
-    plt.hist(b_profile_likelihoods, bins=30, alpha=0.6, label=f'Background Only', density=True)
-    
-    # Add labels and title
-    plt.title(f"B Only Profile Likelihood Distributions", fontsize=16)
-    plt.xlabel("Profile Likelihood", fontsize=14)
-    plt.ylabel("Density", fontsize=14)
-    plt.legend(fontsize=12)
-    
-    # Show plot
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(f"figures/cls_b_profile_likelihoods.pdf")
-
-
-def plot_fit(data, m_range, observed_combined_model_null, observed_combined_model_alt, m_label):
+def plot_fit(data, m_range, observed_combined_model_null, observed_combined_model_alt, m_label, data_type):
 
     # Define histogram
     fig = plt.figure(figsize=(7, 7))
@@ -108,9 +93,10 @@ def plot_fit(data, m_range, observed_combined_model_null, observed_combined_mode
     # Labeling and saving the plot
     ax.set_xlabel(r"$\mathrm{m}_{\gamma\gamma}$ [GeV]")
     ax.set_ylabel('Events')
-    ax.set_title(f"Observed Data w/ fit constrained to m={m_label}")
+    ax.set_title(f"{data_type} Data w/ fit constrained to m={m_label}")
     ax.legend(fontsize='small')
-    plt.savefig(f'figures/histogram_with_fits_m={m_label}.pdf')
+    plt.savefig(f'figures/histogram_with_fits_m={m_label}_datatype_{data_type}.pdf')
+    plt.close()
 
 def plot_cls(cls_dict):
 
@@ -145,21 +131,5 @@ def plot_cls(cls_dict):
 
     # Save the plot
     plt.tight_layout()
-    plt.savefig("cls_plot.pdf")
-
-if __name__ == "__main__":
-    cls_values = {
-        100: 0.01,
-        150: 0.02,
-        200: 1e-3,
-        250: 1e-5,
-        300: 1e-6,
-        350: 1e-4,
-        400: 1e-3,
-        450: 0.02,
-        500: 0.1,
-        550: 0.5,
-        600: 1.0,
-    }  
-
-    plot_cls(cls_values)
+    plt.savefig("figures/cls_plot.pdf")
+    plt.close()

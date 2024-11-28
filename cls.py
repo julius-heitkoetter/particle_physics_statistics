@@ -9,12 +9,12 @@ import hist
 from hist import Hist
 from tqdm import tqdm
 
-from cls_plotting import plot_cls_profile_likelihood_distribution, plot_cls_sb_profile_likelihoods_mass_binned, plot_cls_b_profile_likelihoods, plot_fit
+from cls_plotting import plot_cls_profile_likelihood_distribution, plot_cls_profile_likelihoods_mass_binned, plot_fit, plot_cls
 
 np.random.seed(870987098)
 
 # Script parameters:
-n_pseudoexperiments_per_mass_bin = 10# 200
+n_pseudoexperiments_per_mass_bin = 20
 mass_bin_width = 5
 N_sig_expected = 21.519628102502676 #45
 toy_covering_threshold = 3 # Number of toys needed above observed test statistic to consider it covered. 
@@ -62,10 +62,9 @@ for m in m_bins:
     observed_profile_likelihoods_mass_binned[m] = observed_profile_likelihood
 
     # Plot the fit
-    #TODO: figure out why this fit doesn't quite look right
-    plot_fit(data, m_range, observed_combined_model_null, observed_combined_model_alt, m_label=m)
+    plot_fit(data, m_range, observed_combined_model_null, observed_combined_model_alt, m_label=m, data_type="Observed")
 
-    print(f">>> STARTING GENERATING TOYS FOR m={m} <<<")
+    print(f">>> STARTING GENERATING SIGNAL + BACKGROUND TOYS FOR m={m} <<<")
 
     sb_profile_likelihoods = []
     for _ in tqdm(range(n_pseudoexperiments_per_mass_bin)):
@@ -94,48 +93,66 @@ for m in m_bins:
         toy_profile_likelihood = 2   * (toy_null_nll.value() - toy_alt_nll.value())
         sb_profile_likelihoods.append(toy_profile_likelihood)
 
+    plot_fit(toy_data.to_numpy(), m_range, toy_combined_model_null, toy_combined_model_alt, m_label=m, data_type="Toy_SB")
+
     # Check if s+b toys cover the observed test statistic. If not, use Wilks to generate s+b
-    #TODO : this doesn't work for some reason.
     number_of_toys_covering_observed = np.sum(sb_profile_likelihoods > observed_profile_likelihood)
-    print("DEBUG : sb_profile_likelihoods", sb_profile_likelihoods) #TODO: REMOVE
-    print("DEBUG : observed_profile_likelihood", observed_profile_likelihood) #TODO: REMOVE
-    print("DEBUG : number_of_toys_covering_observed", number_of_toys_covering_observed) #TODO: REMOVE
     if number_of_toys_covering_observed < toy_covering_threshold:
         print(f"WARNING : not enough toys covering data (only {number_of_toys_covering_observed} toy covering), using Wilks theorm instead for m={m}")
         x = np.linspace(1e-3, 2*observed_profile_likelihood.numpy() + 5, 1000)
-        chi2_pdf = stats.chi2.pdf(x, df=1)
-        sb_profile_likelihoods = chi2_pdf * n_pseudoexperiments_per_mass_bin # Wilks allows us to assume chi2 with 1 dof for the s+b (null) hypothosis
-    
+        sb_profile_likelihoods = stats.chi2.rvs(df=1, size=n_pseudoexperiments_per_mass_bin*100)# Wilks allows us to assume chi2 with 1 dof for the s+b (null) hypothosis
+
     sb_profile_likelihoods_mass_binned[m] = sb_profile_likelihoods
 
 print("DEBUG: sb_profile_likelihoods_mass_binned", sb_profile_likelihoods_mass_binned)
 
 # Generate one set of toys for background only hypothosis
 # NOTE: it is not really dependent on the mass, since it is not fitting a peak
-b_profile_likelihoods = []
+b_profile_likelihoods_mass_binned = dict()
 print(f">>> STARTING GENERATING TOYS FOR BACKGROUND ONLY HYPOTHOSIS <<<")
 observed_alt_nll = zfit.loss.UnbinnedNLL(model=observed_exp_model, data=zfit_data)
 observed_alt_result = minimizer.minimize(observed_alt_nll)
-for _ in tqdm(range(n_pseudoexperiments_per_mass_bin)):
-    
-    # Create pseudodata from the exp model that was fit for background only
-    toy_data = observed_exp_model.sample(n=n_data_points)
+for m in m_bins:
 
-    # Fit backgroud only model and get NLL
-    toy_alt_nll = zfit.loss.UnbinnedNLL(model=toy_combined_model_alt, data=toy_data)
-    toy_alt_result = minimizer.minimize(toy_alt_nll)
-    toy_null_nll = zfit.loss.UnbinnedNLL(model=toy_combined_model_null, data=toy_data)
-    toy_null_result = minimizer.minimize(toy_null_nll)
+    b_profile_likelihoods = []
+    print(f">>> STARTING GENERATING BACKGROUND ONLY TOYS FOR m={m} <<<")
 
-    # Calculate the background only profile liklihood and store it
-    toy_profile_likelihood = 2   * (toy_null_nll.value() - toy_alt_nll.value())
-    b_profile_likelihoods.append(toy_profile_likelihood)
+    for _ in tqdm(range(n_pseudoexperiments_per_mass_bin)):
+
+        # Create pseudodata from the exp model that was fit for background only
+        toy_data = observed_exp_model.sample(n=n_data_points)
+
+        # Define models to be used for fitting and generating data
+        toy_exp_lambda = zfit.Parameter("lambda", observed_exp_lambda.value()) # Get the lambda value from the data fit
+        toy_exp_model = zfit.pdf.Exponential(lam=toy_exp_lambda, obs=zfit.Space("x", limits=m_range))
+        toy_gauss_mean = zfit.Parameter("mean", m, floating=False)  # we fix the location of the Gaussian peak! i.e. this will not be fitted
+        toy_gauss_sigma = zfit.Parameter("sigma", DETECTOR_RESOLUTION, floating=False) # we fix the width of the Gaussian peak! i.e. this will not be fitted
+        toy_gauss_model = zfit.pdf.Gauss(mu=toy_gauss_mean, sigma=toy_gauss_sigma, obs=zfit.Space("x", limits=m_range))
+        toy_frac_exp = zfit.Parameter("frac_exp", 1 - N_sig_expected/n_data_points, 1-2*FRAC_SIGNAL, 1) # Get the fraction value from the expected number of signal events
+        toy_frac_exp_fixed = zfit.Parameter("frac_exp", 1 - N_sig_expected/n_data_points, floating=False)
+        toy_combined_model_alt = zfit.pdf.SumPDF([toy_exp_model, toy_gauss_model], fracs=toy_frac_exp, obs=x_obs) # Under the alt hypothosis, the signal fraction is left floating
+        toy_combined_model_null = zfit.pdf.SumPDF([toy_exp_model, toy_gauss_model], fracs=toy_frac_exp_fixed, obs=x_obs) # Under the null hypothosis, we propose signal at a certain strength 
+
+        # Fit backgroud only model and get NLL
+        toy_alt_nll = zfit.loss.UnbinnedNLL(model=toy_combined_model_alt, data=toy_data)
+        toy_alt_result = minimizer.minimize(toy_alt_nll)
+        toy_null_nll = zfit.loss.UnbinnedNLL(model=toy_combined_model_null, data=toy_data)
+        toy_null_result = minimizer.minimize(toy_null_nll)
+
+        # Calculate the background only profile liklihood and store it
+        toy_profile_likelihood = 2   * (toy_null_nll.value() - toy_alt_nll.value())
+        b_profile_likelihoods.append(toy_profile_likelihood)
+
+    b_profile_likelihoods_mass_binned[m] = b_profile_likelihoods
+
+    plot_fit(toy_data.to_numpy(), m_range, toy_combined_model_null, toy_combined_model_alt, m_label=m, data_type="Toy_B")
 
 # Get power of each mass bin a p=0.05
 threshold_at_p5 = dict()
 power_at_p5 = dict()
 for m in sb_profile_likelihoods_mass_binned.keys():
     sb_profile_likelihoods = sb_profile_likelihoods_mass_binned[m]
+    b_profile_likelihoods = b_profile_likelihoods_mass_binned[m]
     threshold = np.percentile(sb_profile_likelihoods, 95)
     fraction_b_greater = np.mean(b_profile_likelihoods > threshold)
     threshold_at_p5[m] = threshold
@@ -144,13 +161,16 @@ for m in sb_profile_likelihoods_mass_binned.keys():
 # Generate data for cls plot
 cls_values = dict()
 for m in sb_profile_likelihoods_mass_binned.keys():
-    power = np.mean(b_profile_likelihoods > observed_profile_likelihoods_mass_binned[m])
+    power = np.mean(b_profile_likelihoods_mass_binned[m] > observed_profile_likelihoods_mass_binned[m])
     p_value = np.mean(sb_profile_likelihoods_mass_binned[m] > observed_profile_likelihoods_mass_binned[m])
     cls_values[m] = p_value/power
 
+# Plot the cls values:
+plot_cls(cls_values)
+
 # Plot all compute likelihood distributions
-plot_cls_sb_profile_likelihoods_mass_binned(sb_profile_likelihoods_mass_binned)
-plot_cls_b_profile_likelihoods(b_profile_likelihoods)
+plot_cls_profile_likelihoods_mass_binned(sb_profile_likelihoods_mass_binned, data_type = "sb")
+plot_cls_profile_likelihoods_mass_binned(b_profile_likelihoods_mass_binned, data_type = "b")
 
 # Plot the profile likelihood distributions for each mass bin
 for m in sb_profile_likelihoods_mass_binned.keys():
