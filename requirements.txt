@@ -1,6 +1,6 @@
-tensorflow
-tensorflow-metal # For Mac
-tqdm
-zfit
-numpy
-matplotlib
+tensorflow==2.16.2
+tensorflow-metal==1.1.0
+tqdm==4.67.1
+zfit==0.23.0
+numpy==1.26.4
+matplotlib==3.9.2
