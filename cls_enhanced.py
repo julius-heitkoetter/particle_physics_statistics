@@ -87,6 +87,7 @@ if __name__ == "__main__":
     n_data_points = len(zfit_data)
 
     observed_profile_likelihoods_mass_binned = dict()
+    observed_exp_lambda_params_mass_binned = dict()
     print(">>> STARTING OBSERVED DATA FITTING <<<")
     for m in tqdm(m_bins):
 
@@ -97,9 +98,12 @@ if __name__ == "__main__":
         observed_gauss_sigma = zfit.Parameter("sigma", DETECTOR_RESOLUTION, floating=False) # we fix the width of the Gaussian peak! i.e. this will not be fitted
         observed_gauss_model = zfit.pdf.Gauss(mu=observed_gauss_mean, sigma=observed_gauss_sigma, obs=zfit.Space("x", limits=m_range))
         observed_frac_exp = zfit.Parameter("frac_exp", 1-FRAC_SIGNAL, 1-2*FRAC_SIGNAL, 1) 
-        observed_frac_exp_fixed = zfit.Parameter("frac_exp", 1 - N_sig_expected/n_data_points, floating=False) 
+        observed_frac_exp_fixed = zfit.Parameter("frac_exp", 1 - args.N_sig_expected/n_data_points, floating=False) 
         observed_combined_model_alt = zfit.pdf.SumPDF([observed_exp_model, observed_gauss_model], fracs=observed_frac_exp, obs=x_obs)
         observed_combined_model_null = zfit.pdf.SumPDF([observed_exp_model, observed_gauss_model], fracs=observed_frac_exp_fixed, obs=x_obs)
+
+        # Store the value of the exponential parameter for later use:
+        observed_exp_lambda_params_mass_binned[m] = observed_exp_lambda.value()
 
         # Fit the data and get bckg model.
         minimizer = zfit.minimize.Minuit()
@@ -115,6 +119,12 @@ if __name__ == "__main__":
         # Plot the fit
         plot_fit(data, m_range, observed_combined_model_null, observed_combined_model_alt, m_label=m, data_type="Observed", folder = args.plot_saving_folder)
 
+        # Clear graph cache
+        zfit.run.clear_graph_cache()
+
+    # Get average exponential parameter for generating background only toy data:
+    average_observed_exp_lambda_param  = sum(observed_exp_lambda_params_mass_binned.values()) / len(observed_exp_lambda_params_mass_binned) 
+
     print(">>> STARTING GENERATING BACKGROUND TOYS <<<")
     b_profile_likelihoods = []
     for _ in tqdm(range(args.n_pseudoexperiments)):
@@ -123,7 +133,7 @@ if __name__ == "__main__":
         toy_data = observed_exp_model.sample(n=n_data_points)
 
         # Define models to be used for fitting and generating data
-        toy_exp_lambda = zfit.Parameter("lambda", observed_exp_lambda.value()) # Get the lambda value from the data fit
+        toy_exp_lambda = zfit.Parameter("lambda", average_observed_exp_lambda_param) # Get the lambda value from the data fit
         toy_exp_model = zfit.pdf.Exponential(lam=toy_exp_lambda, obs=zfit.Space("x", limits=m_range))
         toy_gauss_mean = zfit.Parameter("mean", M_HIGGS, floating=False)  # we fix the location of the Gaussian peak! i.e. this will not be fitted
         toy_gauss_sigma = zfit.Parameter("sigma", DETECTOR_RESOLUTION, floating=False) # we fix the width of the Gaussian peak! i.e. this will not be fitted
@@ -142,6 +152,9 @@ if __name__ == "__main__":
         # Calculate the background only profile liklihood and store it
         toy_profile_likelihood = 2   * (toy_null_nll.value() - toy_alt_nll.value())
         b_profile_likelihoods.append(toy_profile_likelihood)
+
+        # Clear graph cache
+        zfit.run.clear_graph_cache()
 
     # Generate the S+B profile likelihoods using Wilks
     x = np.linspace(1e-3, 2*observed_profile_likelihood.numpy() + 5, 1000)

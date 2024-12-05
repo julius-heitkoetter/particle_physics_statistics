@@ -84,6 +84,7 @@ if __name__ == "__main__":
     # Generate toys for each mass bin:
     sb_profile_likelihoods_mass_binned = dict()
     observed_profile_likelihoods_mass_binned = dict()
+    observed_exp_lambda_params_mass_binned = dict()
     for m in m_bins:
 
         # Define models to be used for fitting data 
@@ -108,8 +109,12 @@ if __name__ == "__main__":
         observed_profile_likelihood = 2   * (observed_null_nll.value() - observed_alt_nll.value())
         observed_profile_likelihoods_mass_binned[m] = observed_profile_likelihood
 
-        # Plot the fit
+        # Plot the fit and store the observed lambda params for liater toy generation
+        observed_exp_lambda_params_mass_binned[m] = observed_exp_lambda.value()
         plot_fit(data, m_range, observed_combined_model_null, observed_combined_model_alt, m_label=m, data_type="Observed", folder = args.plot_saving_folder)
+
+        # Clear graph cache
+        zfit.run.clear_graph_cache()
 
         print(f">>> STARTING GENERATING SIGNAL + BACKGROUND TOYS FOR m={m} <<<")
 
@@ -117,7 +122,7 @@ if __name__ == "__main__":
         for _ in tqdm(range(args.n_pseudoexperiments_per_mass_bin)):
 
             # Define models to be used for fitting and generating data
-            toy_exp_lambda = zfit.Parameter("lambda", observed_exp_lambda.value()) # Get the lambda value from the data fit
+            toy_exp_lambda = zfit.Parameter("lambda", observed_exp_lambda_params_mass_binned[m]) # Get the lambda value from the data fit
             toy_exp_model = zfit.pdf.Exponential(lam=toy_exp_lambda, obs=zfit.Space("x", limits=m_range))
             toy_gauss_mean = zfit.Parameter("mean", m, floating=False)  # we fix the location of the Gaussian peak! i.e. this will not be fitted
             toy_gauss_sigma = zfit.Parameter("sigma", DETECTOR_RESOLUTION, floating=False) # we fix the width of the Gaussian peak! i.e. this will not be fitted
@@ -140,6 +145,9 @@ if __name__ == "__main__":
             toy_profile_likelihood = 2   * (toy_null_nll.value() - toy_alt_nll.value())
             sb_profile_likelihoods.append(toy_profile_likelihood)
 
+            # Clear graph cache
+            zfit.run.clear_graph_cache()
+
         plot_fit(toy_data.to_numpy(), m_range, toy_combined_model_null, toy_combined_model_alt, m_label=m, data_type="Toy_SB", folder = args.plot_saving_folder)
 
         # Check if s+b toys cover the observed test statistic. If not, use Wilks to generate s+b
@@ -157,9 +165,12 @@ if __name__ == "__main__":
     # NOTE: it is not really dependent on the mass, since it is not fitting a peak
     b_profile_likelihoods_mass_binned = dict()
     print(f">>> STARTING GENERATING TOYS FOR BACKGROUND ONLY HYPOTHOSIS <<<")
-    observed_alt_nll = zfit.loss.UnbinnedNLL(model=observed_exp_model, data=zfit_data)
-    observed_alt_result = minimizer.minimize(observed_alt_nll)
     for m in m_bins:
+
+        observed_exp_lambda = zfit.Parameter("lambda", observed_exp_lambda_params_mass_binned[m]) 
+        observed_exp_model = zfit.pdf.Exponential(lam=observed_exp_lambda, obs=zfit.Space("x", limits=m_range))
+        observed_alt_nll = zfit.loss.UnbinnedNLL(model=observed_exp_model, data=zfit_data)
+        observed_alt_result = minimizer.minimize(observed_alt_nll)
 
         b_profile_likelihoods = []
         print(f">>> STARTING GENERATING BACKGROUND ONLY TOYS FOR m={m} <<<")
@@ -170,7 +181,7 @@ if __name__ == "__main__":
             toy_data = observed_exp_model.sample(n=n_data_points)
 
             # Define models to be used for fitting and generating data
-            toy_exp_lambda = zfit.Parameter("lambda", observed_exp_lambda.value()) # Get the lambda value from the data fit
+            toy_exp_lambda = zfit.Parameter("lambda", observed_exp_lambda_params_mass_binned[m]) # Get the lambda value from the data fit
             toy_exp_model = zfit.pdf.Exponential(lam=toy_exp_lambda, obs=zfit.Space("x", limits=m_range))
             toy_gauss_mean = zfit.Parameter("mean", m, floating=False)  # we fix the location of the Gaussian peak! i.e. this will not be fitted
             toy_gauss_sigma = zfit.Parameter("sigma", DETECTOR_RESOLUTION, floating=False) # we fix the width of the Gaussian peak! i.e. this will not be fitted
@@ -189,6 +200,9 @@ if __name__ == "__main__":
             # Calculate the background only profile liklihood and store it
             toy_profile_likelihood = 2   * (toy_null_nll.value() - toy_alt_nll.value())
             b_profile_likelihoods.append(toy_profile_likelihood)
+
+            # Clear graph cache
+            zfit.run.clear_graph_cache()
 
         b_profile_likelihoods_mass_binned[m] = b_profile_likelihoods
 
